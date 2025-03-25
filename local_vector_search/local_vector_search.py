@@ -64,6 +64,7 @@ class local_vs:
         chunk_overlap=150,
         embeddings_path=None,
         model_path=None,
+        include_metadata=False,
         quiet=True,
     ):
         """Chunk and embed the documents
@@ -72,8 +73,11 @@ class local_vs:
             :chunk_overlap: int: how much overlap each chunk should have
             :write_path: str: where to write out the parquet file that will contain the embeddings
             :model_path: str: if using doc2vec, where to write the doc2vec model out
+            :include_metadata: bool: whether nor not to include the metadata in the chunk so it will be searched in the vector search
             :quiet: bool: whether or not to print out the embedding progress
         """
+
+        self.include_metadata = include_metadata
 
         final_df, corpus_language = self.embed.embed_docs(
             metadata_path=self.metadata_path,
@@ -86,6 +90,7 @@ class local_vs:
             write_path=embeddings_path,
             model_path=model_path,
             model=self.model,
+            include_metadata=include_metadata,
         )
 
         self.embeddings_path = embeddings_path
@@ -123,6 +128,7 @@ class local_vs:
             top_n=top_n,
             distance_metric=distance_metric,
             chunk_text_format=chunk_text_format,
+            include_metadata=self.include_metadata,
         )
 
         return response

@@ -18,6 +18,7 @@ def embed_docs(
     write_path=None,
     model_path=None,
     model=None,
+    include_metadata=False,
 ):
     metadata = pl.read_csv(metadata_path)
 
@@ -36,18 +37,34 @@ def embed_docs(
             doc_metadata = metadata.filter(pl.col(filepath_col_name) == file_name).drop(
                 filepath_col_name
             )
-            metadata_string = " | ".join(
-                f"{col}: {val}"
-                for col, val in zip(doc_metadata.columns, doc_metadata.row(0))
+
+            if len(doc_metadata.columns) > 0:
+                metadata_string = " | ".join(
+                    f"{col}: {val}"
+                    for col, val in zip(doc_metadata.columns, doc_metadata.row(0))
+                )
+            else:
+                metadata_string = ""
+
+            # chunk the document
+            chunks, page_nums = chunk_text(
+                s,
+                tokenizer_name,
+                chunk_size,
+                chunk_overlap,
+                include_metadata,
+                metadata_string,
             )
-            chunks, page_nums = chunk_text(s, tokenizer_name, chunk_size, chunk_overlap)
 
             df = pl.DataFrame({"chunk": chunks, "page_num": page_nums})
 
             # adding page numbers to metadata
             df = df.with_columns(
                 pl.col("page_num")
-                .map_elements(lambda x: f"{metadata_string} | page number(s): {x}")
+                .map_elements(
+                    lambda x: f"{metadata_string} | page number(s): {x}",
+                    return_dtype=pl.String,
+                )
                 .alias("metadata_string")
             )
 
@@ -98,6 +115,7 @@ def get_top_n(
     top_n=3,
     distance_metric="cosine",
     chunk_text_format="Excerpt metadata: {}\n\nExcerpt: {}\n\n\n\n",
+    include_metadata=False,
 ):
     "return the top chunks based on distance"
 
@@ -147,8 +165,14 @@ def get_top_n(
         return_string = ""
     for row in return_df.iter_rows():
         row_dict = dict(zip(return_df.columns, row))
-        return_string += chunk_text_format.format(
-            row_dict["metadata_string"], row_dict["chunk"]
-        )
+
+        if (
+            include_metadata
+        ):  # don't include in this case because metadata is in the chunk itself
+            metadata_string = ""
+        else:
+            metadata_string = row_dict["metadata_string"]
+
+        return_string += chunk_text_format.format(metadata_string, row_dict["chunk"])
 
     return return_string

@@ -41,7 +41,12 @@ def replace_newpage_with_occurrence(text):
 
 
 def chunk_text(
-    text, tokenizer_name="meta-llama/Llama-2-7b-hf", chunk_size=700, overlap=150
+    text,
+    tokenizer_name="meta-llama/Llama-2-7b-hf",
+    chunk_size=700,
+    overlap=150,
+    include_metadata=False,
+    metadata_string=None,
 ):
     """
     Tokenizes text using a LLaMA tokenizer, splits it into overlapping chunks,
@@ -52,6 +57,7 @@ def chunk_text(
         tokenizer_name: str: Hugging Face model name for the  tokenizer.
         chunk_size: in): Number of tokens per chunk.
         overlap: int: Overlap size between consecutive chunks.
+        include_metadata: bool: whether nor not to include the metadata in the chunk so it will be searched in the vector search
 
     Returns:
         list: List of chunked texts.
@@ -71,10 +77,16 @@ def chunk_text(
     page_nums = []
     last_page_num = "NA"
     for i in range(0, len(token_ids), chunk_size - overlap):
-        chunk = token_ids[i : i + chunk_size]
-        chunks.append(chunk)
+        # add the metadata to the chunk if required
+        if include_metadata:
+            metadata_tokenized = tokenizer.encode(
+                "metadata: '" + metadata_string, add_special_tokens=False
+            )
+        else:
+            metadata_tokenized = []
 
         # getting last page num
+        chunk = token_ids[i : i + chunk_size]
         pages = re.findall(
             r"\[newpage \d+\]", tokenizer.decode(chunk, skip_special_tokens=True)
         )
@@ -88,6 +100,18 @@ def chunk_text(
         else:
             page_num_text = str(last_page_num)
         page_nums.append(page_num_text)
+
+        # adding page number to chunk if desired
+        if include_metadata:
+            chunk = (
+                metadata_tokenized
+                + tokenizer.encode(
+                    f" | page number(s): {page_num_text}'\n\n", add_special_tokens=False
+                )
+                + token_ids[i : i + chunk_size]
+            )
+
+        chunks.append(chunk)
 
     # Decode each chunk back into text
     chunked_texts = [
