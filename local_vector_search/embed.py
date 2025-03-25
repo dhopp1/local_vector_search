@@ -132,7 +132,12 @@ def get_top_n(
             .limit(top_n)
         )
 
-    return_string = ""
+    # does the text format have a |, in which case this comes first
+    if "|" in chunk_text_format:
+        return_string = chunk_text_format.split("|")[0]
+        chunk_text_format = chunk_text_format.split("|")[1]
+    else:
+        return_string = ""
     for row in return_df.iter_rows():
         row_dict = dict(zip(return_df.columns, row))
         return_string += chunk_text_format.format(

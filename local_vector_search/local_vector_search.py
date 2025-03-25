@@ -100,14 +100,14 @@ class local_vs:
         query,
         top_n=3,
         distance_metric="cosine",
-        chunk_text_format="Excerpt metadata: {}\n\nExcerpt: {}\n\n\n\n",
+        chunk_text_format="Here is the context information:\n\n|Excerpt metadata: '{}'\n\nExcerpt: '{}'\n\n\n\n",
     ):
         """Retrieve top n chunks according to a query
         parameters:
             :query: str: the new query
             :top_n: int: top n chunks to retrieve
             :distance_metric: str: "cosine" or "euclidean"
-            :chunk_text_format: str: how to format the retrieved chunks, two {}'s, first will insert the metadata, second will insert the chunk
+            :chunk_text_format: str: how to format the retrieved chunks, two {}'s, first will insert the metadata, second will insert the chunk. Anything you put in frot of a '|' will only appear in the beginning of the retrieval, after tha will appear for every chunk
         """
 
         query_lang = detect(query)
