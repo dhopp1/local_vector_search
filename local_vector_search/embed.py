@@ -40,10 +40,17 @@ def embed_docs(
                 f"{col}: {val}"
                 for col, val in zip(doc_metadata.columns, doc_metadata.row(0))
             )
-            chunks = chunk_text(s, tokenizer_name, chunk_size, chunk_overlap)
+            chunks, page_nums = chunk_text(s, tokenizer_name, chunk_size, chunk_overlap)
 
-            df = pl.DataFrame({"chunk": chunks})
-            df = df.with_columns(pl.lit(metadata_string).alias("metadata_string"))
+            df = pl.DataFrame({"chunk": chunks, "page_num": page_nums})
+
+            # adding page numbers to metadata
+            df = df.with_columns(
+                pl.col("page_num")
+                .map_elements(lambda x: f"{metadata_string} | page number(s): {x}")
+                .alias("metadata_string")
+            )
+
             for col in doc_metadata.columns:
                 df = df.with_columns(pl.lit(doc_metadata.select(col).item()).alias(col))
 
