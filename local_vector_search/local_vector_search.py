@@ -1,4 +1,6 @@
 from importlib import import_module
+from langdetect import detect
+from mtranslate import translate
 import polars as pl
 from sentence_transformers import SentenceTransformer
 
@@ -47,6 +49,14 @@ class local_vs:
 
         if embeddings_path is not None:
             self.embeddings_df = pl.read_parquet(embeddings_path)
+            # finding corpus language
+            languages = []
+            for row in self.embeddings_df.sample(
+                n=min(100, len(self.embeddings_df)), shuffle=True
+            ).iter_rows():  # only do max 100 rows of the embeddings df to save time
+                row_dict = dict(zip(self.embeddings_df.columns, row))
+                languages.append(detect(row_dict["chunk"]))
+            self.corpus_language = max(set(languages), key=languages.count)
 
     def embed_docs(
         self,
@@ -65,7 +75,7 @@ class local_vs:
             :quiet: bool: whether or not to print out the embedding progress
         """
 
-        self.embed.embed_docs(
+        final_df, corpus_language = self.embed.embed_docs(
             metadata_path=self.metadata_path,
             files_path=self.files_path,
             filepath_col_name=self.filepath_col_name,
@@ -80,6 +90,7 @@ class local_vs:
 
         self.embeddings_path = embeddings_path
         self.embeddings_df = pl.read_parquet(embeddings_path)
+        self.corpus_language = corpus_language
 
         if model_path is not None:
             self.model = self.misc.pickle_load(model_path)
@@ -98,6 +109,11 @@ class local_vs:
             :distance_metric: str: "cosine" or "euclidean"
             :chunk_text_format: str: how to format the retrieved chunks, two {}'s, first will insert the metadata, second will insert the chunk
         """
+
+        query_lang = detect(query)
+
+        if query_lang != self.corpus_language:
+            query = translate(query, self.corpus_language, query_lang)
 
         response = self.embed.get_top_n(
             query=query,

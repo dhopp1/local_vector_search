@@ -1,3 +1,4 @@
+from langdetect import detect
 import os
 import polars as pl
 from scipy.spatial.distance import cosine, euclidean
@@ -23,12 +24,14 @@ def embed_docs(
     # chunking
     counter = 0
     files = [_ for _ in os.listdir(files_path) if ".txt" in _]
+    languages = []
     for file_name in files:
         if not (quiet):
             print(f"Chunking and embedding doc {counter+1}/{len(files)}")
 
         with open(f"{files_path}{file_name}", "r") as file:
             s = file.read()
+            languages.append(detect(s))
 
             doc_metadata = metadata.filter(pl.col(filepath_col_name) == file_name).drop(
                 filepath_col_name
@@ -74,7 +77,10 @@ def embed_docs(
     if write_path is not None:
         final_df.write_parquet(write_path)
 
-    return final_df
+    # getting the most common corpus language
+    corpus_language = max(set(languages), key=languages.count)
+
+    return final_df, corpus_language
 
 
 def get_top_n(

@@ -1,4 +1,6 @@
 gensim
+mtranslate
+langdetect
 nltk
 polars
 scipy
