@@ -22,6 +22,10 @@ def embed_docs(
 ):
     metadata = pl.read_csv(metadata_path)
 
+    # add a weight column if it's not already there
+    if "vector_weight" not in metadata.columns:
+        metadata = metadata.with_columns(pl.lit(1.0).alias("vector_weight"))
+
     # chunking
     counter = 0
     files = [_ for _ in os.listdir(files_path) if ".txt" in _]
@@ -35,7 +39,14 @@ def embed_docs(
             languages.append(detect(s))
 
             doc_metadata = metadata.filter(pl.col(filepath_col_name) == file_name).drop(
-                filepath_col_name
+                filepath_col_name,
+                "vector_weight",
+            )
+
+            doc_weight = (
+                metadata.filter(pl.col(filepath_col_name) == file_name)
+                .select("vector_weight")
+                .item()
             )
 
             if len(doc_metadata.columns) > 0:
@@ -71,7 +82,12 @@ def embed_docs(
             for col in doc_metadata.columns:
                 df = df.with_columns(pl.lit(doc_metadata.select(col).item()).alias(col))
 
-            df = df.select(doc_metadata.columns + ["metadata_string", "chunk"])
+            # adding weight
+            df = df.with_columns(pl.lit(doc_weight).alias("vector_weight"))
+
+            df = df.select(
+                doc_metadata.columns + ["metadata_string", "chunk", "vector_weight"]
+            )
 
             if str(type(model)) != "<class 'gensim.models.doc2vec.Doc2Vec'>":
                 df = df.with_columns(
@@ -137,9 +153,12 @@ def get_top_n(
     if distance_metric == "cosine":
         return_df = (
             final_df.with_columns(
-                pl.col("embedding")
-                .map_elements(lambda x: cosine(x, new_vector), return_dtype=pl.Float64)
-                .alias("vector_distance")
+                (
+                    pl.col("embedding").map_elements(
+                        lambda x: cosine(x, new_vector), return_dtype=pl.Float64
+                    )
+                    * (1 / pl.col("vector_weight"))
+                ).alias("vector_distance")
             )
             .sort(by="vector_distance", descending=False)
             .limit(top_n)
@@ -147,11 +166,12 @@ def get_top_n(
     elif distance_metric == "euclidean":
         return_df = (
             final_df.with_columns(
-                pl.col("embedding")
-                .map_elements(
-                    lambda x: euclidean(x, new_vector), return_dtype=pl.Float64
-                )
-                .alias("vector_distance")
+                (
+                    pl.col("embedding").map_elements(
+                        lambda x: euclidean(x, new_vector), return_dtype=pl.Float64
+                    )
+                    * (1 / pl.col("vector_weight"))
+                ).alias("vector_distance")
             )
             .sort(by="vector_distance", descending=False)
             .limit(top_n)

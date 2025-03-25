@@ -2,6 +2,7 @@ gensim
 mtranslate
 langdetect
 nltk
+pandas
 polars
 scipy
 sentence-transformers

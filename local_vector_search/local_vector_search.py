@@ -8,7 +8,7 @@ from sentence_transformers import SentenceTransformer
 class local_vs:
     """Primary class of the library, manage and embed the corpus
     parameters:
-        :metadata_path: str: path to the metadata.csv file. Must have at least the column "filepath" corresponding to the name of the files in the 'files_path' directory
+        :metadata_path: str: path to the metadata.csv file. Must have at least the column "filepath" corresponding to the name of the files in the 'files_path' directory. Include a column named 'vector_weight' in the metadata csv to weight distances. 1 = no alteration to the distance, 0.5 = distance will be multiplied by 1/0.5, so be made 2x farther. Not including this column will result in equal weight for all documents.
         :files_path: str: folder path containing the .txt files of the documents
         :filepath_col_name: str: name of the column in the metadata that contains the file names
         :model: gensim.models.doc2vec.Doc2Vec or str: if using a doc2vec model, the model with its hyperparameters, if using a pre-trained embedding model, its name
