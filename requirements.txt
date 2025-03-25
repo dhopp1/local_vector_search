@@ -1,0 +1,5 @@
+gensim
+nltk
+polars
+scipy
+sentence-transformers
