@@ -22,9 +22,15 @@ def embed_docs(
 ):
     metadata = pl.read_csv(metadata_path)
 
+    # add a text_id column if it's not already there
+    if "text_id" not in metadata.columns:
+        metadata = metadata.with_row_index(name="text_id", offset=1)
+
     # add a weight column if it's not already there
     if "vector_weight" not in metadata.columns:
         metadata = metadata.with_columns(pl.lit(1.0).alias("vector_weight"))
+
+    metadata.write_csv(metadata_path)
 
     # chunking
     counter = 0
@@ -53,6 +59,7 @@ def embed_docs(
                 metadata_string = " | ".join(
                     f"{col}: {val}"
                     for col, val in zip(doc_metadata.columns, doc_metadata.row(0))
+                    if col != "text_id"
                 )
             else:
                 metadata_string = ""
@@ -126,6 +133,7 @@ def embed_docs(
 def get_top_n(
     query,
     final_df,
+    text_ids=[],
     clean_text_function=None,
     model=None,
     top_n=3,
@@ -139,6 +147,10 @@ def get_top_n(
         clean_text_function = clean_text
 
     transformed_query = clean_text_function(query)
+
+    # filter for desired text ids
+    if len(text_ids) > 0:
+        final_df = final_df.filter(pl.col("text_id").is_in(text_ids))
 
     if top_n is None:
         top_n = len(final_df)

@@ -16,6 +16,7 @@ class local_vs:
         :clean_text_function: function: function that takes a single input string and returns an output string. Text will go through this process before being passed as a query for the vector similarity search
         :embeddings_path: str: if already generated the embeddings, the path to the parquet file where they are saved.
         :doc2vec_path: str: if already generated the embeddings, the path to the doc2vec pickle model
+        :include_metadata: bool: whether nor not to include the metadata in the chunk so it will be searched in the vector search
     """
 
     def __init__(
@@ -28,6 +29,7 @@ class local_vs:
         clean_text_function=None,
         embeddings_path=None,
         doc2vec_path=None,
+        include_metadata=False,
     ):
         self.embed = import_module("local_vector_search.embed")
         self.misc = import_module("local_vector_search.misc")
@@ -46,6 +48,7 @@ class local_vs:
         self.clean_text_function = clean_text_function
         self.embeddings_path = embeddings_path
         self.doc2vec_path = doc2vec_path
+        self.include_metadata = include_metadata
 
         if embeddings_path is not None:
             self.embeddings_df = pl.read_parquet(embeddings_path)
@@ -64,7 +67,6 @@ class local_vs:
         chunk_overlap=150,
         embeddings_path=None,
         model_path=None,
-        include_metadata=False,
         quiet=True,
     ):
         """Chunk and embed the documents
@@ -73,11 +75,8 @@ class local_vs:
             :chunk_overlap: int: how much overlap each chunk should have
             :write_path: str: where to write out the parquet file that will contain the embeddings
             :model_path: str: if using doc2vec, where to write the doc2vec model out
-            :include_metadata: bool: whether nor not to include the metadata in the chunk so it will be searched in the vector search
             :quiet: bool: whether or not to print out the embedding progress
         """
-
-        self.include_metadata = include_metadata
 
         final_df, corpus_language = self.embed.embed_docs(
             metadata_path=self.metadata_path,
@@ -90,7 +89,7 @@ class local_vs:
             write_path=embeddings_path,
             model_path=model_path,
             model=self.model,
-            include_metadata=include_metadata,
+            include_metadata=self.include_metadata,
         )
 
         self.embeddings_path = embeddings_path
@@ -103,6 +102,7 @@ class local_vs:
     def get_top_n(
         self,
         query,
+        text_ids=[],
         top_n=3,
         distance_metric="cosine",
         chunk_text_format="Here is the context information:\n\n|Excerpt metadata: '{}'\n\nExcerpt: '{}'\n\n\n\n",
@@ -110,6 +110,7 @@ class local_vs:
         """Retrieve top n chunks according to a query
         parameters:
             :query: str: the new query
+            :text_ids: list[int]: list of text ids to include in the search. Leave an empty list to search all
             :top_n: int: top n chunks to retrieve
             :distance_metric: str: "cosine" or "euclidean"
             :chunk_text_format: str: how to format the retrieved chunks, two {}'s, first will insert the metadata, second will insert the chunk. Anything you put in frot of a '|' will only appear in the beginning of the retrieval, after tha will appear for every chunk
@@ -123,6 +124,7 @@ class local_vs:
         response = self.embed.get_top_n(
             query=query,
             final_df=self.embeddings_df,
+            text_ids=text_ids,
             clean_text_function=self.clean_text_function,
             model=self.model,
             top_n=top_n,

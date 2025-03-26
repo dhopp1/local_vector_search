@@ -22,12 +22,17 @@ for corpus in corpora:
 
 @app.get("/api/v1/which_corpora/")
 async def which_corpora():
-    return corpora
+    return [
+        _.split("_")[1].split(".")[0]
+        for _ in os.listdir(corpora_path)
+        if ".parquet" in _
+    ]
 
 
 class SearchRequest(BaseModel):
     which_corpus: str
     query: str
+    text_ids: list[int] = []
     distance_metric: str = "cosine"
     top_n: int = 3
 
@@ -35,5 +40,8 @@ class SearchRequest(BaseModel):
 @app.post("/api/v1/vector_search/")
 async def vector_search(request: SearchRequest):
     return corpora_dict[request.which_corpus].get_top_n(
-        request.query, top_n=int(request.top_n), distance_metric=request.distance_metric
+        request.query,
+        text_ids=request.text_ids,
+        top_n=int(request.top_n),
+        distance_metric=request.distance_metric,
     )

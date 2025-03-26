@@ -18,6 +18,9 @@ vs.embed_docs(
 # perform the vector similarity search
 vs.get_top_n(query, top_n=3, distance_metric="cosine") # 'cosine' or 'euclidean'
 
+# perform the search, but only include text ids 2 and 4 in the search
+vs.get_top_n(query, text_ids=[2,4], top_n=3, distance_metric="cosine") # 'cosine' or 'euclidean'
+
 # instantiate a vs with an already calculated embeddings dataset
 vs = local_vs(embeddings_path = "path_to_save_embeddings.parquet")
 
@@ -40,6 +43,7 @@ from local_vector_search.misc import pickle_loadvs = local_vs(
 ### Input data
 - two main things are required for constructing the corpora:
 	- `metadata.csv` file: this contains at least one column, `filepath`, which has the names of the files. It can include other columns with information. Include a column named `vector_weight` with a value between 1 and 0. With this column, each document can be given a weight in the chunk retrieval. A value of 1 leaves the distance calculation as is, a value of 0.5 will do the following: the documents' distances to the query will be multiplied by `(1/0.5)=2`, making their vectors twice as distant, and thereby giving them less weight/likelihood to be retrieved.
+	- for a unique identifier, include a `text_id` column. If you don't provide one, it will default to `1`, `2`, etc.
 	- `files_path`: the directory where the documents are. `.txt` files only. Ideally, these should have been converted with [nlp_pipeline](https://github.com/dhopp1/nlp_pipeline). If present, it will use the `[newpage]` tag to determine which page of the PDF the chunk comes from.
 
 ### Functionality
