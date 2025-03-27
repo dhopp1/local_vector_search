@@ -4,5 +4,6 @@ langdetect
 nltk
 pandas
 polars
+pyarrow
 scipy
 sentence-transformers
