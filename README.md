@@ -4,14 +4,14 @@ Vector search for input to RAG without a vector database.
 ## Quick usage
 ```py
 from local_vector_search.local_vector_search import local_vs# using transfomer pre-trained model
-vs = local_vs(        metadata_path = path_to_metadata_csv,        files_path = path_to_files,        model = "all-MiniLM-L6-v2", # can be any transformers embedding model, https://huggingface.co/sentence-transformers        tokenizer_name = "meta-llama/Llama-2-7b-hf", # can be any tokenizer model, for tokenizing and getting appropriate chunk sizes according to tokens, https://huggingface.co/docs/transformers/model_doc/auto        clean_text_function=None, # any function that takes in a string and outputs a string, in case you want to edit the queries for searching the vector database    )
+vs = local_vs(        metadata_path = path_to_metadata_csv,        files_path = path_to_files,        model = "all-MiniLM-L6-v2", # can be any transformers embedding model, https://huggingface.co/sentence-transformers        tokenizer_name = "meta-llama/Llama-2-7b-hf", # can be any tokenizer model, for tokenizing and getting appropriate chunk sizes according to tokens, https://huggingface.co/docs/transformers/model_doc/auto        clean_text_function=None, # any function that takes in a string and outputs a string, in case you want to edit the queries for searching the vector database
+        include_metadata = False, # set to true to include metadata in the chunks, so they will be searched as well    )
     
 # embed the documents
 vs.embed_docs(
 	chunk_size = 700, 
 	chunk_overlap = 150, 
 	embeddings_path = "path_to_save_embeddings.parquet",
-	include_metadata = False, # set to true to include metadata in the chunks, so they will be searched as well
 	quiet=False,
 )
 
