@@ -36,6 +36,19 @@ class local_vs:
         self.text_cleaning = import_module("local_vector_search.text_cleaning")
 
         self.metadata_path = metadata_path
+        metadata = pl.read_csv(metadata_path)
+
+        # add a text_id column if it's not already there
+        if "text_id" not in metadata.columns:
+            metadata = metadata.with_row_index(name="text_id", offset=1)
+
+        # add a weight column if it's not already there
+        if "vector_weight" not in metadata.columns:
+            metadata = metadata.with_columns(pl.lit(1.0).alias("vector_weight"))
+
+        metadata.write_csv(metadata_path)
+        self.metadata = metadata
+
         self.files_path = files_path
         self.filepath_col_name = filepath_col_name
 
@@ -67,6 +80,7 @@ class local_vs:
         chunk_overlap=150,
         embeddings_path=None,
         model_path=None,
+        text_ids=None,
         quiet=True,
     ):
         """Chunk and embed the documents
@@ -75,11 +89,12 @@ class local_vs:
             :chunk_overlap: int: how much overlap each chunk should have
             :write_path: str: where to write out the parquet file that will contain the embeddings
             :model_path: str: if using doc2vec, where to write the doc2vec model out
+            :text_ids: list[int]: list of text ids in case want to embed in a loop for status printing
             :quiet: bool: whether or not to print out the embedding progress
         """
 
         final_df, corpus_language = self.embed.embed_docs(
-            metadata_path=self.metadata_path,
+            metadata=self.metadata,
             files_path=self.files_path,
             filepath_col_name=self.filepath_col_name,
             tokenizer_name=self.tokenizer_name,
@@ -90,14 +105,21 @@ class local_vs:
             model_path=model_path,
             model=self.model,
             include_metadata=self.include_metadata,
+            text_ids=text_ids,
         )
 
         self.embeddings_path = embeddings_path
-        self.embeddings_df = pl.read_parquet(embeddings_path)
+        try:
+            self.embeddings_df = pl.read_parquet(embeddings_path)
+        except:
+            pass
         self.corpus_language = corpus_language
 
         if model_path is not None:
             self.model = self.misc.pickle_load(model_path)
+
+        if embeddings_path is None:
+            return final_df
 
     def get_top_n(
         self,

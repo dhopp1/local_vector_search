@@ -8,7 +8,7 @@ from local_vector_search.text_cleaning import chunk_text, clean_text, yield_docs
 
 
 def embed_docs(
-    metadata_path,
+    metadata,
     files_path,
     filepath_col_name,
     tokenizer_name="meta-llama/Llama-2-7b-hf",
@@ -19,22 +19,16 @@ def embed_docs(
     model_path=None,
     model=None,
     include_metadata=False,
+    text_ids=None,
 ):
-    metadata = pl.read_csv(metadata_path)
-
-    # add a text_id column if it's not already there
-    if "text_id" not in metadata.columns:
-        metadata = metadata.with_row_index(name="text_id", offset=1)
-
-    # add a weight column if it's not already there
-    if "vector_weight" not in metadata.columns:
-        metadata = metadata.with_columns(pl.lit(1.0).alias("vector_weight"))
-
-    metadata.write_csv(metadata_path)
-
     # chunking
     counter = 0
-    files = [_ for _ in os.listdir(files_path) if ".txt" in _]
+
+    if text_ids is None:
+        files = [_ for _ in os.listdir(files_path) if ".txt" in _]
+    else:
+        files = metadata.filter(pl.col("text_id").is_in(text_ids))["filepath"].to_list()
+
     languages = []
     for file_name in files:
         if not (quiet):

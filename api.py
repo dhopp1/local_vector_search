@@ -8,7 +8,9 @@ from pydantic import BaseModel
 app = FastAPI()
 corpora_path = "corpora/"  # change to location of corpora on local machine
 corpora = [
-    _.split("_")[1].split(".")[0] for _ in os.listdir(corpora_path) if ".parquet" in _
+    _.split("embeddings_")[1].split(".")[0]
+    for _ in os.listdir(corpora_path)
+    if ".parquet" in _
 ]
 
 # read in all corpora on load to avoid doing it for every call
