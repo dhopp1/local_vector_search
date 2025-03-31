@@ -53,7 +53,7 @@ def embed_docs(
                 metadata_string = " | ".join(
                     f"{col}: {val}"
                     for col, val in zip(doc_metadata.columns, doc_metadata.row(0))
-                    if col != "text_id"
+                    if col not in ["text_id", "chunk_id"]
                 )
             else:
                 metadata_string = ""
@@ -114,6 +114,14 @@ def embed_docs(
         if model_path is not None:
             pickle_save(model, model_path)
 
+    # adding chunk ids
+    final_df = final_df.with_columns(
+        pl.int_range(0, final_df.height, dtype=pl.Int64).alias("chunk_id")
+    )
+    final_df = final_df.select(
+        ["chunk_id"] + [col for col in final_df.columns if col != "chunk_id"]
+    )
+
     # writing out parquet file
     if write_path is not None:
         final_df.write_parquet(write_path)
@@ -137,6 +145,11 @@ def get_top_n(
 ):
     "return the top chunks based on distance"
 
+    if distance_metric == "cosine":
+        dist_func = cosine
+    elif distance_metric == "euclidean":
+        dist_func = euclidean
+
     if clean_text_function is None:
         clean_text_function = clean_text
 
@@ -156,32 +169,21 @@ def get_top_n(
     except:
         new_vector = model.encode(transformed_query)
 
-    if distance_metric == "cosine":
-        return_df = (
-            final_df.with_columns(
-                (
-                    pl.col("embedding").map_elements(
-                        lambda x: cosine(x, new_vector), return_dtype=pl.Float64
-                    )
-                    * (1 / pl.col("vector_weight"))
-                ).alias("vector_distance")
-            )
-            .sort(by="vector_distance", descending=False)
-            .limit(top_n)
+    # calculating distance
+    return_df = (
+        final_df.with_columns(
+            (
+                pl.col("embedding").map_elements(
+                    lambda x: dist_func(x, new_vector), return_dtype=pl.Float64
+                )
+                * (1 / pl.col("vector_weight"))
+            ).alias("vector_distance")
         )
-    elif distance_metric == "euclidean":
-        return_df = (
-            final_df.with_columns(
-                (
-                    pl.col("embedding").map_elements(
-                        lambda x: euclidean(x, new_vector), return_dtype=pl.Float64
-                    )
-                    * (1 / pl.col("vector_weight"))
-                ).alias("vector_distance")
-            )
-            .sort(by="vector_distance", descending=False)
-            .limit(top_n)
-        )
+        .sort(by="vector_distance", descending=False)
+        .limit(top_n)
+    )
+
+    chunk_ids = return_df["chunk_id"].to_list()
 
     # does the text format have a |, in which case this comes first
     if "|" in chunk_text_format:
@@ -189,6 +191,7 @@ def get_top_n(
         chunk_text_format = chunk_text_format.split("|")[1]
     else:
         return_string = ""
+
     for row in return_df.iter_rows():
         row_dict = dict(zip(return_df.columns, row))
 
@@ -201,4 +204,17 @@ def get_top_n(
 
         return_string += chunk_text_format.format(metadata_string, row_dict["chunk"])
 
-    return return_string
+    return {
+        "response": return_string,
+        "chunk_ids": chunk_ids,
+    }
+
+
+def retrieve_chunks(embeddings_df, chunk_ids):
+    "retrieve text of chunks given a list of chunk_ids"
+    filtered_df = embeddings_df.filter(pl.col("chunk_id").is_in(chunk_ids))
+
+    return {
+        "metadata": filtered_df["metadata_string"].to_list(),
+        "chunks": filtered_df["chunk"].to_list(),
+    }

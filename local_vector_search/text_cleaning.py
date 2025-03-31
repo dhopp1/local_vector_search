@@ -111,6 +111,13 @@ def chunk_text(
                 + token_ids[i : i + chunk_size]
             )
 
+        # remove [new page *] from the chunk
+        chunk = tokenizer.decode(
+            chunk, skip_special_tokens=True
+        )  # convert back into text
+        chunk = re.sub(r"\[newpage [^\]]+\]", "", chunk)  # remove newpage
+        chunk = tokenizer.encode(chunk, add_special_tokens=False)  # re-encode
+
         chunks.append(chunk)
 
     # Decode each chunk back into text

@@ -136,6 +136,8 @@ class local_vs:
             :top_n: int: top n chunks to retrieve
             :distance_metric: str: "cosine" or "euclidean"
             :chunk_text_format: str: how to format the retrieved chunks, two {}'s, first will insert the metadata, second will insert the chunk. Anything you put in frot of a '|' will only appear in the beginning of the retrieval, after tha will appear for every chunk
+        returns:
+            :dict: dictionary, 'response' = text of chunks, 'chunk_ids' = list of top n closesrtt chunk ids
         """
 
         query_lang = detect(query)
@@ -156,3 +158,7 @@ class local_vs:
         )
 
         return response
+
+    def retrieve_chunks(self, chunk_ids):
+        "Retrieve metadata strings and chunks given chunk ids"
+        return self.embed.retrieve_chunks(self.embeddings_df, chunk_ids)

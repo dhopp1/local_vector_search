@@ -16,10 +16,13 @@ vs.embed_docs(
 )
 
 # perform the vector similarity search
-vs.get_top_n(query, top_n=3, distance_metric="cosine") # 'cosine' or 'euclidean'
+vs.get_top_n(query, top_n=3, distance_metric="cosine") # 'cosine' or 'euclidean' # returns the chunks in a single string, as well as the ids of the chunks
 
 # perform the search, but only include text ids 2 and 4 in the search
 vs.get_top_n(query, text_ids=[2,4], top_n=3, distance_metric="cosine") # 'cosine' or 'euclidean'
+
+# return selected chunks from a corpus
+vs.retrieve_chunks(chunk_ids=[1,5,7] # retrieve the metadata and text of these chunks
 
 # instantiate a vs with an already calculated embeddings dataset
 vs = local_vs(embeddings_path = "path_to_save_embeddings.parquet")

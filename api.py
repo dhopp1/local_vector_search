@@ -17,7 +17,8 @@ corpora = [
 corpora_dict = {}
 for corpus in corpora:
     corpora_dict[corpus] = local_vs(
-        embeddings_path=f"{corpora_path}/embeddings_{corpus}.parquet"
+        metadata_path=f"{corpora_path}/metadata_{corpus}.csv",
+        embeddings_path=f"{corpora_path}/embeddings_{corpus}.parquet",
     )
     corpora_dict[corpus].include_metadata = False
 
@@ -46,4 +47,16 @@ async def vector_search(request: SearchRequest):
         text_ids=request.text_ids,
         top_n=int(request.top_n),
         distance_metric=request.distance_metric,
+    )
+
+
+class ChunkRequest(BaseModel):
+    which_corpus: str
+    chunk_ids: list[int]
+
+
+@app.post("/api/v1/retrieve_chunks/")
+async def retrieve_chunks(request: ChunkRequest):
+    return corpora_dict[request.which_corpus].retrieve_chunks(
+        chunk_ids=request.chunk_ids,
     )
