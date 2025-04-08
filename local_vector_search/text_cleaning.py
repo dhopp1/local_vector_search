@@ -169,9 +169,9 @@ def chunk_text(
                 chunk = col_line + "\n" + chunk
 
             chunk = tokenizer.encode(chunk, add_special_tokens=False)
+            page_nums.append(f"rows {i}-{i + lines_per_chunk}")
 
         chunks.append(chunk)
-        page_nums.append(f"rows {i}-{i + lines_per_chunk}")
 
     # Decode each chunk back into text
     chunked_texts = [
