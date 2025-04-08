@@ -22,7 +22,7 @@ vs.get_top_n(query, top_n=3, distance_metric="cosine") # 'cosine' or 'euclidean'
 vs.get_top_n(query, text_ids=[2,4], top_n=3, distance_metric="cosine") # 'cosine' or 'euclidean'
 
 # return selected chunks from a corpus
-vs.retrieve_chunks(chunk_ids=[1,5,7] # retrieve the metadata and text of these chunks
+vs.retrieve_chunks(chunk_ids=[1,5,7]) # retrieve the metadata and text of these chunks
 
 # instantiate a vs with an already calculated embeddings dataset
 vs = local_vs(embeddings_path = "path_to_save_embeddings.parquet")
@@ -48,6 +48,7 @@ from local_vector_search.misc import pickle_loadvs = local_vs(
 	- `metadata.csv` file: this contains at least one column, `filepath`, which has the names of the files. It can include other columns with information. Include a column named `vector_weight` with a value between 1 and 0. With this column, each document can be given a weight in the chunk retrieval. A value of 1 leaves the distance calculation as is, a value of 0.5 will do the following: the documents' distances to the query will be multiplied by `(1/0.5)=2`, making their vectors twice as distant, and thereby giving them less weight/likelihood to be retrieved.
 	- for a unique identifier, include a `text_id` column. If you don't provide one, it will default to `1`, `2`, etc.
 	- `files_path`: the directory where the documents are. `.txt` files only. Ideally, these should have been converted with [nlp_pipeline](https://github.com/dhopp1/nlp_pipeline). If present, it will use the `[newpage]` tag to determine which page of the PDF the chunk comes from.
+	- If the text file is determined to be a markdown table (e.g., if you converted a CSV or Excel file with [nlp_pipeline](https://github.com/dhopp1/nlp_pipeline)), the chunks will automatically include the column headers in each chunk so the LLM has full, self-contained context within each chunk, and so that column names will also be considered in the vector similarity search.
 
 ### Functionality
 - The corpus's language will be determined when embedded. If the query language does not match the corpus language, the query will be translated to the corpus's language to ensure the retrieval of relevant results.

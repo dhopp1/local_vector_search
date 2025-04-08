@@ -40,6 +40,19 @@ def replace_newpage_with_occurrence(text):
     return result
 
 
+def is_markdown_table(s):
+    "determine if a string is a markdown table"
+
+    lines = [line.strip() for line in s.strip().splitlines()]
+    if len(lines) < 2:
+        return False
+    if not all("|" in line for line in lines[:2]):
+        return False
+    if re.match(r"^\s*\|?[\s:-]+\|[\s|:-]+\|?\s*$", lines[1]):
+        return True
+    return False
+
+
 def chunk_text(
     text,
     tokenizer_name="meta-llama/Llama-2-7b-hf",
@@ -66,57 +79,96 @@ def chunk_text(
     # replace [newpage] with [newpage page_num]
     text = replace_newpage_with_occurrence(text)
 
+    # determine if is markdown table
+    is_markdown = is_markdown_table(text)
+
     # Load LLaMA tokenizer
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
 
     # Tokenize the text into token IDs
     token_ids = tokenizer.encode(text, add_special_tokens=False)
 
+    # markdown info
+    if is_markdown:
+        col_line = text.split("\n")[0] + "\n" + text.split("\n")[1]  # column headers
+        max_tokens_one_line = max(
+            [
+                len(tokenizer.encode(_, add_special_tokens=False))
+                for _ in text.split("\n")
+            ]
+        )  # see how many tokens one line is
+        lines_per_chunk = max(1, int(chunk_size / max_tokens_one_line))
+
     # Split into chunks with overlap
     chunks = []
     page_nums = []
     last_page_num = "NA"
-    for i in range(0, len(token_ids), chunk_size - overlap):
-        # add the metadata to the chunk if required
-        if include_metadata:
-            metadata_tokenized = tokenizer.encode(
-                "metadata: '" + metadata_string, add_special_tokens=False
-            )
-        else:
-            metadata_tokenized = []
+    if is_markdown:
+        loop_range = list(
+            range(0, len(text.split("\n")) - 1, lines_per_chunk)
+        )  # - 1 to account for header row
+    else:
+        loop_range = list(range(0, len(token_ids), chunk_size - overlap))
 
-        # getting last page num
-        chunk = token_ids[i : i + chunk_size]
-        pages = re.findall(
-            r"\[newpage \d+\]", tokenizer.decode(chunk, skip_special_tokens=True)
-        )
-        if len(pages) > 0:
-            pages = [int(_.replace("[newpage", "").replace("]", "")) for _ in pages]
-            last_page_num = pages[-1]
-            if len(pages) > 1:
-                page_num_text = f"{pages[0]}-{pages[1]}"
-            else:
-                page_num_text = str(pages[0])
-        else:
-            page_num_text = str(last_page_num)
-        page_nums.append(page_num_text)
-
-        # adding page number to chunk if desired
-        if include_metadata:
-            chunk = (
-                metadata_tokenized
-                + tokenizer.encode(
-                    f" | page number(s): {page_num_text}'\n\n", add_special_tokens=False
+    for i in loop_range:
+        if not (is_markdown):
+            # add the metadata to the chunk if required
+            if include_metadata:
+                metadata_tokenized = tokenizer.encode(
+                    "metadata: " + metadata_string, add_special_tokens=False
                 )
-                + token_ids[i : i + chunk_size]
+            else:
+                metadata_tokenized = []
+
+            # getting last page num
+            chunk = token_ids[i : i + chunk_size]
+            pages = re.findall(
+                r"\[newpage \d+\]", tokenizer.decode(chunk, skip_special_tokens=True)
+            )
+            if len(pages) > 0:
+                pages = [int(_.replace("[newpage", "").replace("]", "")) for _ in pages]
+                last_page_num = pages[-1]
+                if len(pages) > 1:
+                    page_num_text = f"{pages[0]}-{pages[1]}"
+                else:
+                    page_num_text = str(pages[0])
+            else:
+                page_num_text = str(last_page_num)
+            page_nums.append(page_num_text)
+
+            # adding page number to chunk if desired
+            if include_metadata:
+                chunk = (
+                    metadata_tokenized
+                    + tokenizer.encode(
+                        f" | page number(s): {page_num_text}'\n\n",
+                        add_special_tokens=False,
+                    )
+                    + token_ids[i : i + chunk_size]
+                )
+
+            # remove [new page *] from the chunk
+            chunk = tokenizer.decode(
+                chunk, skip_special_tokens=True
+            )  # convert back into text
+            chunk = re.sub(r"\[newpage [^\]]+\]", "", chunk)  # remove newpage
+
+            # reencode chunk
+            chunk = tokenizer.encode(chunk, add_special_tokens=False)  # re-encode
+
+        else:  # markdown table
+            chunk = "\n".join(
+                "\n".join(text.split("\n")[2:]).split("\n")[i : (i + (lines_per_chunk))]
             )
 
-        # remove [new page *] from the chunk
-        chunk = tokenizer.decode(
-            chunk, skip_special_tokens=True
-        )  # convert back into text
-        chunk = re.sub(r"\[newpage [^\]]+\]", "", chunk)  # remove newpage
-        chunk = tokenizer.encode(chunk, add_special_tokens=False)  # re-encode
+            if include_metadata:
+                chunk = (
+                    "metadata: " + metadata_string + "\n\n" + col_line + "\n" + chunk
+                )
+            else:
+                chunk = col_line + "\n" + chunk
+
+            chunk = tokenizer.encode(chunk, add_special_tokens=False)
 
         chunks.append(chunk)
 
