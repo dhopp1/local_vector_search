@@ -1,8 +1,9 @@
 from importlib import import_module
-from langdetect import detect
 from mtranslate import translate
 import polars as pl
 from sentence_transformers import SentenceTransformer
+
+from local_vector_search.misc import robust_detect
 
 
 class local_vs:
@@ -71,7 +72,7 @@ class local_vs:
                 n=min(100, len(self.embeddings_df)), shuffle=True
             ).iter_rows():  # only do max 100 rows of the embeddings df to save time
                 row_dict = dict(zip(self.embeddings_df.columns, row))
-                languages.append(detect(row_dict["chunk"]))
+                languages.append(robust_detect(row_dict["chunk"]))
             self.corpus_language = max(set(languages), key=languages.count)
 
     def embed_docs(
@@ -140,7 +141,7 @@ class local_vs:
             :dict: dictionary, 'response' = text of chunks, 'chunk_ids' = list of top n closesrtt chunk ids
         """
 
-        query_lang = detect(query)
+        query_lang = robust_detect(query)
 
         if query_lang != self.corpus_language:
             query = translate(query, self.corpus_language, query_lang)
