@@ -212,6 +212,17 @@ def get_top_n(
 def retrieve_chunks(embeddings_df, chunk_ids):
     "retrieve text of chunks given a list of chunk_ids"
     filtered_df = embeddings_df.filter(pl.col("chunk_id").is_in(chunk_ids))
+    filtered_df = (
+        filtered_df.with_columns(
+            pl.col("chunk_id")
+            .map_elements(
+                lambda x: {v: i for i, v in enumerate(chunk_ids)}.get(x, len(chunk_ids))
+            )
+            .alias("sort_key")
+        )
+        .sort("sort_key")
+        .drop("sort_key")
+    )
 
     return {
         "metadata": filtered_df["metadata_string"].to_list(),
