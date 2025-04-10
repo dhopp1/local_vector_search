@@ -73,7 +73,10 @@ class local_vs:
             ).iter_rows():  # only do max 100 rows of the embeddings df to save time
                 row_dict = dict(zip(self.embeddings_df.columns, row))
                 languages.append(robust_detect(row_dict["chunk"]))
-            self.corpus_language = max(set(languages), key=languages.count)
+            try:
+                self.corpus_language = max(set(languages), key=languages.count)
+            except:
+                self.corpus_language = "en"
 
     def embed_docs(
         self,
