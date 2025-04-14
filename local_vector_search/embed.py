@@ -49,16 +49,11 @@ def embed_docs(
                 .item()
             )
 
-            if include_chunk_id_metadata_string:
-                exclude_cols = ["text_id"]
-            else:
-                exclude_cols = ["text_id", "chunk_id"]
-
             if len(doc_metadata.columns) > 0:
                 metadata_string = " | ".join(
                     f"{col}: {val}"
                     for col, val in zip(doc_metadata.columns, doc_metadata.row(0))
-                    if col not in exclude_cols
+                    if col not in ["text_id"]
                 )
             else:
                 metadata_string = ""
@@ -123,6 +118,15 @@ def embed_docs(
     final_df = final_df.with_columns(
         pl.int_range(0, final_df.height, dtype=pl.Int64).alias("chunk_id")
     )
+
+    # adding chunk ids to metadata string
+    if include_chunk_id_metadata_string:
+        final_df = final_df.with_columns(
+            pl.format(
+                "chunk id: {} | {}", pl.col("chunk_id"), pl.col("metadata_string")
+            ).alias("metadata_string")
+        )
+
     final_df = final_df.select(
         ["chunk_id"] + [col for col in final_df.columns if col != "chunk_id"]
     )
