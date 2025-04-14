@@ -18,6 +18,7 @@ class local_vs:
         :embeddings_path: str: if already generated the embeddings, the path to the parquet file where they are saved.
         :doc2vec_path: str: if already generated the embeddings, the path to the doc2vec pickle model
         :include_metadata: bool: whether nor not to include the metadata in the chunk so it will be searched in the vector search
+        :include_chunk_id_metadata_string: bool: whether or not to include the chunk id in the metadata string at embedding time
     """
 
     def __init__(
@@ -31,6 +32,7 @@ class local_vs:
         embeddings_path=None,
         doc2vec_path=None,
         include_metadata=False,
+        include_chunk_id_metadata_string=False,
     ):
         self.embed = import_module("local_vector_search.embed")
         self.misc = import_module("local_vector_search.misc")
@@ -63,6 +65,7 @@ class local_vs:
         self.embeddings_path = embeddings_path
         self.doc2vec_path = doc2vec_path
         self.include_metadata = include_metadata
+        self.include_chunk_id_metadata_string = include_chunk_id_metadata_string
 
         if embeddings_path is not None:
             self.embeddings_df = pl.read_parquet(embeddings_path)
@@ -109,6 +112,7 @@ class local_vs:
             model_path=model_path,
             model=self.model,
             include_metadata=self.include_metadata,
+            include_chunk_id_metadata_string=self.include_chunk_id_metadata_string,
             text_ids=text_ids,
         )
 

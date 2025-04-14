@@ -18,6 +18,7 @@ def embed_docs(
     model_path=None,
     model=None,
     include_metadata=False,
+    include_chunk_id_metadata_string=False,
     text_ids=None,
 ):
     # chunking
@@ -48,11 +49,16 @@ def embed_docs(
                 .item()
             )
 
+            if include_chunk_id_metadata_string:
+                exclude_cols = ["text_id"]
+            else:
+                exclude_cols = ["text_id", "chunk_id"]
+
             if len(doc_metadata.columns) > 0:
                 metadata_string = " | ".join(
                     f"{col}: {val}"
                     for col, val in zip(doc_metadata.columns, doc_metadata.row(0))
-                    if col not in ["text_id", "chunk_id"]
+                    if col not in exclude_cols
                 )
             else:
                 metadata_string = ""
